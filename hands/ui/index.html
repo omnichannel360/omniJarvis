@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Jarvis — Voice Assistant</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0e27;
+      color: #e0e0e0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .container {
+      width: 100%;
+      max-width: 800px;
+    }
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 1;
+      max-width: 400px;
+      margin: 0 auto 40px;
+    }
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .info {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    h1 {
+      font-size: 28px;
+      margin-bottom: 8px;
+      color: #4dd0e1;
+    }
+    .status {
+      font-size: 14px;
+      color: #90caf9;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .approval-panel {
+      background: rgba(45, 85, 255, 0.1);
+      border: 1px solid #2d55ff;
+      border-radius: 8px;
+      padding: 20px;
+      margin-top: 20px;
+      display: none;
+    }
+    .approval-panel.active {
+      display: block;
+    }
+    .approval-task {
+      margin-bottom: 12px;
+    }
+    .approval-task h3 {
+      color: #4dd0e1;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .approval-task p {
+      color: #b0bec5;
+      font-size: 13px;
+      margin-bottom: 10px;
+    }
+    .approval-buttons {
+      display: flex;
+      gap: 10px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+    .btn-approve {
+      background: #4caf50;
+      color: white;
+    }
+    .btn-approve:hover {
+      background: #45a049;
+      box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+    }
+    .btn-deny {
+      background: #f44336;
+      color: white;
+    }
+    .btn-deny:hover {
+      background: #da190b;
+      box-shadow: 0 0 8px rgba(244, 67, 54, 0.5);
+    }
+    .logs {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 12px;
+      margin-top: 20px;
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 12px;
+      font-family: "Monaco", "Courier New", monospace;
+      color: #4dd0e1;
+    }
+    .log-entry {
+      margin-bottom: 4px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(77, 208, 225, 0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="info">
+      <h1>Jarvis</h1>
+      <div class="status" id="status">Listening...</div>
+    </div>
+
+    <div class="canvas-container">
+      <canvas id="canvas"></canvas>
+    </div>
+
+    <div class="approval-panel" id="approvalPanel">
+      <div class="approval-task">
+        <h3 id="approvalTitle">Approval Required</h3>
+        <p id="approvalDetails">Details pending...</p>
+        <div class="approval-buttons">
+          <button class="btn btn-approve" onclick="approveTask()">Approve</button>
+          <button class="btn btn-deny" onclick="denyTask()">Deny</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="logs" id="logs"></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const approvalPanel = document.getElementById('approvalPanel');
+    const logsEl = document.getElementById('logs');
+
+    let state = 'idle';
+    let currentTask = null;
+    let ws = null;
+
+    function resizeCanvas() {
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function connectWebSocket() {
+      ws = new WebSocket('ws://localhost:8787/ws');
+
+      ws.onopen = () => {
+        log('Connected to Jarvis');
+        state = 'listening';
+      };
+
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+
+        if (msg.type === 'state_change') {
+          state = msg.state;
+          statusEl.textContent = msg.state.charAt(0).toUpperCase() + msg.state.slice(1);
+        }
+
+        if (msg.type === 'approval_request') {
+          showApproval(msg);
+        }
+
+        if (msg.type === 'log') {
+          log(msg.message);
+        }
+      };
+
+      ws.onerror = (e) => {
+        log('WebSocket error: ' + e);
+        state = 'idle';
+      };
+
+      ws.onclose = () => {
+        log('Disconnected. Reconnecting...');
+        setTimeout(connectWebSocket, 3000);
+      };
+    }
+
+    function showApproval(msg) {
+      currentTask = msg;
+      document.getElementById('approvalTitle').textContent = msg.task;
+      document.getElementById('approvalDetails').textContent = msg.details;
+      approvalPanel.classList.add('active');
+      state = 'approval_pending';
+    }
+
+    function approveTask() {
+      if (currentTask) {
+        ws.send(JSON.stringify({
+          type: 'approval_response',
+          task_id: currentTask.task_id,
+          approved: true
+        }));
+        approvalPanel.classList.remove('active');
+        log('Approved: ' + currentTask.task);
+        currentTask = null;
+      }
+    }
+
+    function denyTask() {
+      if (currentTask) {
+        ws.send(JSON.stringify({
+          type: 'approval_response',
+          task_id: currentTask.task_id,
+          approved: false
+        }));
+        approvalPanel.classList.remove('active');
+        log('Denied: ' + currentTask.task);
+        currentTask = null;
+      }
+    }
+
+    function log(msg) {
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.textContent = '[' + new Date().toLocaleTimeString() + '] ' + msg;
+      logsEl.appendChild(entry);
+      logsEl.scrollTop = logsEl.scrollHeight;
+      if (logsEl.children.length > 50) logsEl.removeChild(logsEl.firstChild);
+    }
+
+    function animate() {
+      const w = canvas.width / window.devicePixelRatio;
+      const h = canvas.height / window.devicePixelRatio;
+      ctx.fillStyle = 'rgba(10, 14, 39, 0.1)';
+      ctx.fillRect(0, 0, w, h);
+
+      const cx = w / 2;
+      const cy = h / 2;
+      const now = Date.now() / 1000;
+
+      const coreRadius = 20;
+      ctx.fillStyle = state === 'speaking' ? '#4dd0e1' : '#2196f3';
+      ctx.beginPath();
+      ctx.arc(cx, cy, coreRadius, 0, Math.PI * 2);
+      ctx.fill();
+
+      if (state === 'listening' || state === 'idle') {
+        const breathe = 10 + Math.sin(now * 2) * 5;
+        ctx.strokeStyle = 'rgba(77, 208, 225, 0.3)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.arc(cx, cy, coreRadius + breathe, 0, Math.PI * 2);
+        ctx.stroke();
+      }
+
+      if (state === 'thinking' || state === 'speaking') {
+        ctx.fillStyle = '#4dd0e1';
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2;
+          const x = cx + Math.cos(angle) * 50;
+          const y = cy + Math.sin(angle) * 50;
+          const h = 15 + Math.sin(now * 3 + i) * 10;
+          ctx.fillRect(x - 4, y - h / 2, 8, h);
+        }
+      }
+
+      requestAnimationFrame(animate);
+    }
+    animate();
+
+    connectWebSocket();
+  </script>
+</body>
+</html>
