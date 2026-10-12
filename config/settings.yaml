@@ -1,0 +1,55 @@
+app:
+  name: Jarvis
+  owner: James Duran
+  timezone: Asia/Manila
+  log_level: INFO
+
+workspace:
+  root: C:\Jarvis\workspace
+  index_path: C:\Jarvis\workspace\.index
+  permissions:
+    read_only_dirs:
+      - C:\Program Files
+      - C:\Program Files (x86)
+      - C:\Windows
+    blocked_patterns:
+      - "*.key"
+      - "*.pem"
+      - ".env*"
+      - "**/credentials*"
+
+tailscale:
+  interface_only: true
+  dns_only: false
+  exit_node: none
+  devices:
+    brain: jarvis-brain
+    pc: jarvis-pc
+
+api:
+  anthropic:
+    base_url: https://api.anthropic.com/v1
+    timeout: 60
+  hands_server:
+    host: 100.0.0.0
+    port: 8787
+    auth: token
+
+telegram:
+  owner_id: 0
+  approval_timeout_minutes: 10
+
+memory:
+  database: C:\Jarvis\memory\jarvis.db
+  retention_days: 90
+  embedding_model: nomic-embed-text
+
+security:
+  audit_log: C:\Jarvis\logs\audit.jsonl
+  kill_file: C:\Jarvis\.JARVIS_STOP
+  approval_log: C:\Jarvis\logs\approvals.jsonl
+
+quota:
+  hourly_api_calls: 1000
+  daily_api_cost_limit: 50.0
+  rate_limit_per_tool: 100

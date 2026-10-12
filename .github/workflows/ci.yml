@@ -1,0 +1,30 @@
+name: CI
+
+on:
+  push:
+    branches: [main, dev, phase/*]
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install ruff mypy pytest pytest-cov
+      - run: ruff check .
+      - run: mypy --strict brain/ hands/ policy/
+      - run: pytest tests/ -v --cov=policy,brain,hands --cov-fail-under=80
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+      - run: pip install pytest pytest-cov
+      - run: pytest tests/ -v --cov=policy,brain,hands --cov-fail-under=80

@@ -1,0 +1,14 @@
+[Unit]
+Description=Jarvis Brain Orchestrator
+After=network.target
+
+[Service]
+Type=simple
+User=jarvis
+WorkingDirectory=/home/jarvis/jarvis
+ExecStart=/usr/bin/python3 -m brain.jarvis_brain.app
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,22 @@
+models:
+  opus:
+    id: claude-opus-4-1-20250805
+    context_window: 200000
+    use_case: planning, reasoning, complex decisions, untrusted content
+  sonnet:
+    id: claude-sonnet-4-20250514
+    context_window: 200000
+    use_case: main development, coding tasks, orchestration
+  haiku:
+    id: claude-haiku-4-5-20251001
+    context_window: 200000
+    use_case: lightweight agents, injection screening, routing
+
+endpoints:
+  anthropic_api: https://api.anthropic.com/v1
+  ollama_fallback: http://localhost:11434
+
+retry:
+  max_attempts: 3
+  backoff_factor: 2
+  timeout_seconds: 30

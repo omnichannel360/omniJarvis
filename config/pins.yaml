@@ -1,0 +1,18 @@
+versions:
+  openjarvis:
+    tag: v0.5.0
+    repository: https://github.com/open-jarvis/OpenJarvis
+    submodule_path: openjarvis
+
+  python: "3.11"
+
+  key_dependencies:
+    anthropic: ">=0.28.0"
+    fastapi: ">=0.104.0"
+    python-telegram-bot: ">=21.0"
+    pystray: ">=0.19.0"
+
+security:
+  required_hash_verification: true
+  audit_log_retention_days: 365
+  tier3_hardening: code-level-refusal-only

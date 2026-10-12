@@ -1,0 +1,25 @@
+# Allowlist: apps, domains, file paths
+apps:
+  allowed:
+    - chrome.exe
+    - msedge.exe
+    - explorer.exe
+    - notepad.exe
+    - powershell.exe
+    - cmd.exe
+  blocked:
+    - password_manager.exe
+    - banking_app.exe
+
+domains:
+  allowed:
+    - anthropic.com
+    - github.com
+    - google.com
+  blocked:
+    - malware.site
+
+paths:
+  allowed_roots:
+    - "C:\Jarvis"
+    - "C:\Users\Administrator\AppData"

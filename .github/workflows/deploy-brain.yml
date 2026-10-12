@@ -1,0 +1,13 @@
+name: Deploy Brain
+
+on:
+  push:
+    tags:
+      - v*
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: echo "Deploy to Hetzner (Phase 1+)"
