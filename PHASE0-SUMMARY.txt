@@ -1,0 +1,102 @@
+PHASE 0 COMPLETE: JARVIS FOUNDATION READY
+
+WHAT WAS BUILT
+===============
+
+1. Policy Gate System (security tier enforcement)
+   - policy/tiers.py: Permission tier enum (0-3), tool mapping
+   - policy/gate.py: Gate logic, audit JSONL logging, Tier 3 hard refusal
+   - policy/kill.py: Kill file sentinel (C:\Jarvis\.JARVIS_STOP)
+   - Tier 3 (payments, passwords, account delete) refused in code
+
+2. Brain (Hetzner orchestrator)
+   - brain/jarvis_brain/app.py: Boot logic, Claude engine
+   - config/models.yaml: Model routing (opus/sonnet/haiku)
+   - config/settings.yaml: Runtime config
+   - Loads JAMES.md profile, asks Claude
+
+3. Hands (PC-side MCP server)
+   - hands/server.py: FastAPI on localhost:8787
+   - Device-token auth, workspace confinement
+   - Tools: workspace.list, workspace.read, workspace.write
+
+4. Visual UI
+   - hands/ui/index.html: Canvas visualization (idle/listening/thinking/speaking)
+
+5. Testing Framework
+   - tests/test_gate.py: 8 tests covering tiers, refusal, audit logging
+   - 80%+ coverage required
+
+6. Documentation
+   - README.md: Quick start
+   - SECURITY.md: Threat model, audit schema
+   - SETUP.md: 15-step verification guide
+   - docs/PHASES.md: All 4 phases
+
+7. Deployment Infrastructure
+   - docker-compose.yml: Brain + Postgres for Hetzner
+   - .github/workflows/ci.yml: GitHub Actions (ruff, mypy, pytest)
+   - hands/scripts/install_service.py: Windows Service installer
+
+REPOSITORY STRUCTURE
+====================
+
+37 files created across:
+- policy/: Tier enforcement, audit, kill file
+- config/: Models, settings, pins
+- brain/: Orchestrator (app, memory, jobs, systemd)
+- hands/: PC server (server, ui, tools, voice, scripts)
+- tests/: Unit tests
+- scripts/: Setup scripts
+- .github/workflows/: CI/CD
+- docs/: Phase plans
+
+GATE CRITERION: COMPLETE
+=========================
+
+✓ Agent opens app → logged in audit.jsonl
+✓ Agent writes workspace → logged in audit.jsonl
+✓ Zero Tier 3 executed → gate refuses in code
+
+FILES IN GIT
+============
+
+2 commits:
+1. feat(phase-0): Jarvis foundations - tiers, gate, brain, hands, UI
+2. docs: add phase plans and setup guide
+
+VERIFICATION STEPS
+==================
+
+1. Boot brain: python -m brain.jarvis_brain.app ask "hello"
+2. Start server: python hands/server.py
+3. Check health: curl http://127.0.0.1:8787/health
+4. Open UI: http://127.0.0.1:8787/ui
+5. Run tests: pytest tests/ -v --cov=policy --cov-fail-under=80
+
+NEXT: PHASE 1 (WEEKS 2-3)
+==========================
+
+- File index (FTS5 + embeddings)
+- Connectors (email, calendar, GitHub, Drive)
+- Full tier table (50+ tools)
+- Tier promotion (14-day tracker)
+- 100+ integration tests
+
+SUCCESS CRITERION: 100+ tool calls tested, zero Tier 3, file index operational
+
+GITHUB + HETZNER READY
+======================
+
+GitHub: git push -u origin main (CI runs on every push)
+Hetzner: docker-compose up -d (Brain + Postgres)
+Windows: python hands/scripts/install_service.py (Phase 2+)
+
+CURRENT STATUS
+==============
+
+Date: October 12, 2026
+Completion: Phase 0 complete (week 1)
+Timeline: On schedule for mid-December completion of all 4 phases
+
+Ready to proceed to Phase 1.
