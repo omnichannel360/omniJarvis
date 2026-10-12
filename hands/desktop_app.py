@@ -1,4 +1,4 @@
-"""Jarvis desktop app - with mic permission control."""
+"""Jarvis desktop app - SpeechRecognition for proper Windows mic access."""
 import tkinter as tk
 from tkinter import scrolledtext
 import math
@@ -8,11 +8,10 @@ import time
 API_URL = "http://localhost:8787"
 
 try:
-    import sounddevice as sd
-    import numpy as np
-    HAS_AUDIO = True
+    import speech_recognition as sr
+    HAS_SPEECH = True
 except ImportError:
-    HAS_AUDIO = False
+    HAS_SPEECH = False
 
 
 class JarvisCanvas(tk.Canvas):
@@ -69,8 +68,9 @@ class JarvisApp:
         self.current_task = None
         self.mic_enabled = False
         self.voice_thread = None
+        self.recognizer = None
 
-        # Mic permission panel (top)
+        # Mic permission panel
         mic_panel = tk.Frame(root, bg="#0a0e27", highlightthickness=1, highlightbackground="#f44336")
         mic_panel.pack(pady=10, padx=20, fill=tk.X)
 
@@ -88,17 +88,11 @@ class JarvisApp:
         self.btn_mic.pack(side=tk.LEFT, padx=10)
 
         # Title
-        title = tk.Label(
-            root, text="Jarvis", font=("Arial", 32, "bold"),
-            bg="#0a0e27", fg="#4dd0e1"
-        )
+        title = tk.Label(root, text="Jarvis", font=("Arial", 32, "bold"), bg="#0a0e27", fg="#4dd0e1")
         title.pack(pady=15)
 
         # Status
-        self.status = tk.Label(
-            root, text="WAITING FOR PERMISSION",
-            font=("Arial", 12), bg="#0a0e27", fg="#90caf9"
-        )
+        self.status = tk.Label(root, text="WAITING FOR PERMISSION", font=("Arial", 12), bg="#0a0e27", fg="#90caf9")
         self.status.pack(pady=10)
 
         # Canvas
@@ -110,124 +104,89 @@ class JarvisApp:
         self.approval_frame.pack(pady=10, fill=tk.X, padx=20)
         self.approval_frame.pack_forget()
 
-        self.approval_title = tk.Label(
-            self.approval_frame, text="Approval Required", font=("Arial", 12, "bold"),
-            bg="#0a0e27", fg="#4dd0e1"
-        )
+        self.approval_title = tk.Label(self.approval_frame, text="Approval Required", font=("Arial", 12, "bold"), bg="#0a0e27", fg="#4dd0e1")
         self.approval_title.pack(pady=5)
 
-        self.approval_details = tk.Label(
-            self.approval_frame, text="Details pending...", font=("Arial", 10),
-            bg="#0a0e27", fg="#b0bec5", wraplength=500, justify=tk.LEFT
-        )
+        self.approval_details = tk.Label(self.approval_frame, text="Details pending...", font=("Arial", 10), bg="#0a0e27", fg="#b0bec5", wraplength=500, justify=tk.LEFT)
         self.approval_details.pack(pady=5)
 
         btn_frame = tk.Frame(self.approval_frame, bg="#0a0e27")
         btn_frame.pack(pady=10)
 
-        self.btn_approve = tk.Button(
-            btn_frame, text="✓ Approve", bg="#4caf50", fg="white",
-            font=("Arial", 10), padx=20, command=self.approve
-        )
+        self.btn_approve = tk.Button(btn_frame, text="✓ Approve", bg="#4caf50", fg="white", font=("Arial", 10), padx=20, command=self.approve)
         self.btn_approve.pack(side=tk.LEFT, padx=5)
 
-        self.btn_deny = tk.Button(
-            btn_frame, text="✗ Deny", bg="#f44336", fg="white",
-            font=("Arial", 10), padx=20, command=self.deny
-        )
+        self.btn_deny = tk.Button(btn_frame, text="✗ Deny", bg="#f44336", fg="white", font=("Arial", 10), padx=20, command=self.deny)
         self.btn_deny.pack(side=tk.LEFT, padx=5)
 
         # Logs
-        self.logs = scrolledtext.ScrolledText(
-            root, height=8, bg="#0a0e27", fg="#4dd0e1",
-            font=("Courier", 9), state=tk.DISABLED, insertbackground="#4dd0e1"
-        )
+        self.logs = scrolledtext.ScrolledText(root, height=8, bg="#0a0e27", fg="#4dd0e1", font=("Courier", 9), state=tk.DISABLED, insertbackground="#4dd0e1")
         self.logs.pack(pady=10, padx=20, fill=tk.BOTH, expand=False)
 
-        self.log("Jarvis started. Click 'Enable Microphone' to start.")
-        self.log("Windows will ask for microphone permission.")
-        self.detect_microphones()
+        self.log("Jarvis started. Click 'Enable Microphone'")
+        self.log("Using SpeechRecognition (Google STT).")
         self.poll_state()
 
-    def detect_microphones(self):
-        """Detect available microphones."""
-        if not HAS_AUDIO:
-            self.log("⚠️ sounddevice not installed")
-            return
-
-        try:
-            devices = sd.query_devices()
-            self.log("🔍 Available audio devices:")
-            input_devices = []
-
-            for i, device in enumerate(devices):
-                if device['max_input_channels'] > 0:
-                    input_devices.append(device)
-                    name = device['name']
-                    channels = device['max_input_channels']
-                    self.log(f"  [{i}] {name} ({channels} ch)")
-
-            if input_devices:
-                default = sd.default.device
-                self.log(f"✓ Default mic: Device {default[0]}")
-            else:
-                self.log("❌ No microphones detected!")
-        except Exception as e:
-            self.log(f"Error detecting mics: {e}")
-
     def enable_microphone(self):
-        """Enable microphone with permission check."""
-        if not HAS_AUDIO:
-            self.log("⚠️ sounddevice not installed. Run: pip install sounddevice")
+        if not HAS_SPEECH:
+            self.log("Install: pip install SpeechRecognition")
             return
 
-        self.log("🎤 Requesting microphone access...")
+        self.log("🎤 Initializing microphone...")
 
         try:
-            # Test microphone access
-            sd.rec(1, samplerate=16000, channels=1, dtype='float32')
-            sd.wait()
+            self.recognizer = sr.Recognizer()
+            with sr.Microphone() as source:
+                self.recognizer.adjust_for_ambient_noise(source, duration=1)
+                self.log("✓ Microphone ready!")
+
             self.mic_enabled = True
             self.mic_status.config(text="🟢 Microphone: ENABLED", fg="#4caf50")
-            self.btn_mic.config(text="✓ Microphone Enabled", state=tk.DISABLED)
+            self.btn_mic.config(text="✓ Listening...", state=tk.DISABLED)
             self.status.config(text="LISTENING...")
             self.canvas.set_state("listening")
-            self.log("✓ Microphone enabled! Say 'Hey Jarvis'")
 
-            # Start voice listener
             if self.voice_thread is None or not self.voice_thread.is_alive():
                 self.voice_thread = threading.Thread(target=self.voice_listener, daemon=True)
                 self.voice_thread.start()
+                self.log("🎤 Say something...")
+
         except Exception as e:
-            self.log(f"❌ Microphone access denied: {e}")
-            self.log("To enable: Settings → Privacy → Microphone → Allow apps to access")
-            self.mic_status.config(text="❌ Microphone: ACCESS DENIED", fg="#f44336")
+            self.log(f"❌ Error: {e}")
+            self.mic_status.config(text="❌ FAILED", fg="#f44336")
 
     def voice_listener(self):
-        """Listen for audio."""
-        if not HAS_AUDIO or not self.mic_enabled:
+        if not self.recognizer or not self.mic_enabled:
             return
 
         try:
-            while self.mic_enabled:
-                duration = 1
-                samplerate = 16000
-                audio = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, dtype='float32')
-                sd.wait()
+            with sr.Microphone() as source:
+                while self.mic_enabled:
+                    try:
+                        self.canvas.set_state("listening")
+                        self.log("🎧 Listening (10 sec timeout)...")
 
-                amplitude = np.abs(audio).mean()
-                self.log(f"Audio level: {amplitude:.4f}")
-                if amplitude > 0.01:
-                    self.log(f"🎙️ Sound detected! (level: {amplitude:.2f})")
-                    self.canvas.set_state("thinking")
-                    self.status.config(text="PROCESSING...")
-                    time.sleep(0.5)
-                    self.canvas.set_state("listening")
-                    self.status.config(text="LISTENING...")
+                        audio = self.recognizer.listen(source, timeout=10, phrase_time_limit=10)
+                        self.canvas.set_state("thinking")
+                        self.status.config(text="PROCESSING...")
+                        self.log("🔄 Converting to text...")
+
+                        text = self.recognizer.recognize_google(audio)
+                        self.log(f"✓ HEARD: {text}")
+                        self.canvas.set_state("speaking")
+                        self.status.config(text="UNDERSTOOD")
+                        time.sleep(1)
+
+                    except sr.UnknownValueError:
+                        self.log("? Could not understand")
+                    except sr.RequestError as e:
+                        self.log(f"Google API error: {e}")
+                    except sr.WaitTimeoutError:
+                        self.log("Timeout - no sound detected")
+
         except Exception as e:
             if self.mic_enabled:
-                self.log(f"Mic error: {e}")
-                time.sleep(2)
+                self.log(f"Listener error: {e}")
 
     def log(self, msg):
         self.logs.config(state=tk.NORMAL)
@@ -245,14 +204,14 @@ class JarvisApp:
 
     def approve(self):
         if self.current_task:
-            self.log(f"✓ Approved: {self.current_task['task']}")
+            self.log(f"✓ Approved")
             self.approval_frame.pack_forget()
             self.current_task = None
             self.canvas.set_state("listening")
 
     def deny(self):
         if self.current_task:
-            self.log(f"✗ Denied: {self.current_task['task']}")
+            self.log(f"✗ Denied")
             self.approval_frame.pack_forget()
             self.current_task = None
             self.canvas.set_state("listening")
