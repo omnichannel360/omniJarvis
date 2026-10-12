@@ -146,7 +146,34 @@ class JarvisApp:
 
         self.log("Jarvis started. Click 'Enable Microphone' to start.")
         self.log("Windows will ask for microphone permission.")
+        self.detect_microphones()
         self.poll_state()
+
+    def detect_microphones(self):
+        """Detect available microphones."""
+        if not HAS_AUDIO:
+            self.log("⚠️ sounddevice not installed")
+            return
+
+        try:
+            devices = sd.query_devices()
+            self.log("🔍 Available audio devices:")
+            input_devices = []
+
+            for i, device in enumerate(devices):
+                if device['max_input_channels'] > 0:
+                    input_devices.append(device)
+                    name = device['name']
+                    channels = device['max_input_channels']
+                    self.log(f"  [{i}] {name} ({channels} ch)")
+
+            if input_devices:
+                default = sd.default.device
+                self.log(f"✓ Default mic: Device {default[0]}")
+            else:
+                self.log("❌ No microphones detected!")
+        except Exception as e:
+            self.log(f"Error detecting mics: {e}")
 
     def enable_microphone(self):
         """Enable microphone with permission check."""
