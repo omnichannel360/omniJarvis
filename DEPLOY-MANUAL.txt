@@ -1,0 +1,220 @@
+================================================================================
+JARVIS PRODUCTION DEPLOYMENT — MANUAL EXECUTION
+================================================================================
+
+All automation scripts ready. Execute these steps on YOUR systems.
+
+================================================================================
+STEP 1: GITHUB (Your Local PC)
+================================================================================
+
+Create repo on github.com (https://github.com/new)
+Name: jarvis
+Description: Voice desktop AI assistant
+Private: Yes (optional)
+
+Then execute:
+
+  cd C:\Users\Administrator\omniJarvis
+  git remote add origin https://github.com/YOUR-USERNAME/jarvis.git
+  git branch -M master
+  git push -u origin master
+
+Verify: 12 commits, all files pushed
+
+================================================================================
+STEP 2: HETZNER BRAIN (SSH to VPS)
+================================================================================
+
+ssh root@YOUR_HETZNER_IP
+
+Then:
+
+  cd /opt
+  git clone https://github.com/YOUR-USERNAME/jarvis.git
+  cd jarvis
+
+  # Store API keys
+  export ANTHROPIC_API_KEY=sk-ant-YOUR_KEY_HERE
+  export TELEGRAM_BOT_TOKEN=123456:ABC-YOUR_TOKEN_HERE
+  export POSTGRES_PASSWORD=YOUR_DB_PASSWORD_HERE
+
+  # Deploy
+  docker-compose up -d
+  sleep 10
+
+  # Verify
+  docker-compose ps
+  curl http://localhost:8000/health
+
+Expected: {"status":"ok"} response
+
+================================================================================
+STEP 3: WINDOWS PC HANDS (PowerShell as Administrator)
+================================================================================
+
+  cd C:\Users\Administrator\omniJarvis
+
+  # Install dependencies
+  uv sync
+
+  # Store API keys
+  python scripts/setup_keys.py
+  # Will prompt for ANTHROPIC_API_KEY, TELEGRAM_BOT_TOKEN
+
+  # Install service
+  python hands/scripts/install_service.py
+
+  # Start service
+  net start JarvisHands
+
+  # Verify
+  curl http://127.0.0.1:8787/health
+
+Expected: {"status":"ok","service":"hands"} response
+
+================================================================================
+STEP 4: OPEN UI
+================================================================================
+
+  Open browser: http://127.0.0.1:8787/ui
+
+  Should see:
+  - Jarvis logo (canvas visualization)
+  - Status: "idle"
+  - Breathing core animation
+
+================================================================================
+STEP 5: RUN TESTS
+================================================================================
+
+  cd C:\Users\Administrator\omniJarvis
+  pytest tests/ -v --cov=policy,brain,hands --cov-fail-under=80
+
+Expected: All tests pass, 80%+ coverage
+
+================================================================================
+STEP 6: SMOKE TEST
+================================================================================
+
+  # Test brain
+  python -m brain.jarvis_brain.app ask "What is 2+2?"
+
+Expected: Response from Claude (e.g., "Four" or "2+2 equals 4")
+
+  # Test Telegram
+  Open Telegram, send /status to your bot
+
+Expected: System status response
+
+  # Test file index
+  python -c "from hands.index.builder import IndexBuilder; ib = IndexBuilder('test.db'); ib.init_schema(); print('OK')"
+
+Expected: "OK"
+
+================================================================================
+STEP 7: MONITOR 24 HOURS
+================================================================================
+
+  # Watch audit log
+  Get-Content -Path "C:\Jarvis\logs\audit.jsonl" -Tail 20 -Wait
+
+  # Watch logs
+  docker-compose logs -f brain  (on Hetzner)
+
+  Watch for:
+  - No errors
+  - Tool calls logged with tiers
+  - No unexpected Tier 3 attempts
+  - API calls tracking correctly
+
+================================================================================
+STEP 8: VERIFY SCHEDULED JOBS (Day 1+)
+================================================================================
+
+  07:00 Manila time: Morning brief arrives on Telegram
+  09:00 Manila time: Inbox triage task runs
+  14:00 Manila time: Repo health check
+  15:00 Manila time: Server health check
+  16:00 Manila time: School reminders
+
+================================================================================
+STEP 9: RUN RED TEAM SUITE (Day 5+)
+================================================================================
+
+  python brain/redteam/run_suite.py
+
+Expected: All injection tests pass (SQL, XSS, path traversal blocked)
+
+================================================================================
+STEP 10: PRODUCTION APPROVAL
+================================================================================
+
+Once all steps complete:
+  ✓ Brain responds
+  ✓ Hands responds
+  ✓ Tests pass
+  ✓ 24h no errors
+  ✓ Jobs running
+  ✓ Red team passes
+
+=> PRODUCTION READY
+
+Go to LAUNCH-CHECKLIST.md for sign-off procedures.
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Brain won't start:
+  docker-compose logs brain
+  Check: ANTHROPIC_API_KEY set, Docker installed, port 8000 free
+
+Hands won't start:
+  Get-Content "C:\Jarvis\logs\hands.log"
+  Check: Python 3.11+, port 8787 free, uv sync completed
+
+Tests fail:
+  pytest tests/test_gate.py -vv
+  Check: All imports working, tiers.py expanded to 50+ tools
+
+Telegram bot not responding:
+  Check: TELEGRAM_BOT_TOKEN correct, owner ID set in settings.yaml
+  Recreate token: python scripts/setup_keys.py
+
+Morning brief doesn't arrive:
+  Check: Jobs scheduled (brain logs)
+  Check: Telegram connection
+  Manually trigger: python -m brain.jarvis_brain.app ask "morning brief"
+
+================================================================================
+ROLLBACK (If needed)
+================================================================================
+
+Kill switch (immediate stop):
+  touch C:\Jarvis\.JARVIS_STOP
+
+Code rollback:
+  git revert <commit>
+  git push
+  docker-compose restart brain (on Hetzner)
+
+Database rollback:
+  cp C:\Jarvis\memory\jarvis.db.backup C:\Jarvis\memory\jarvis.db
+  docker-compose restart brain
+
+Resume:
+  rm C:\Jarvis\.JARVIS_STOP
+
+================================================================================
+SUPPORT
+================================================================================
+
+Owner: James Duran (itsupport@omnichannelsol.com)
+Repo: https://github.com/YOUR-USERNAME/jarvis
+Runbook: PRODUCTION-RUNBOOK.md
+Checklist: LAUNCH-CHECKLIST.md
+
+================================================================================
+DEPLOYMENT READY — BEGIN EXECUTION
+================================================================================
