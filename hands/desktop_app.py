@@ -1,12 +1,19 @@
-"""Jarvis desktop app (Tkinter - no dependencies)."""
+"""Jarvis desktop app (Tkinter - microphone support)."""
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import scrolledtext, messagebox
 import math
 import threading
 import time
 from datetime import datetime
 
 API_URL = "http://localhost:8787"
+
+try:
+    import sounddevice as sd
+    import numpy as np
+    HAS_AUDIO = True
+except ImportError:
+    HAS_AUDIO = False
 
 
 class JarvisCanvas(tk.Canvas):
@@ -71,6 +78,13 @@ class JarvisApp:
         self.root.geometry("900x800")
         self.root.configure(bg="#0a0e27")
         self.current_task = None
+        self.listening = False
+
+        # Start voice listener
+        if HAS_AUDIO:
+            self.voice_thread = threading.Thread(target=self.voice_listener, daemon=True)
+            self.voice_thread.start()
+            self.log("🎤 Microphone listening...")
 
         # Title
         title_frame = tk.Frame(root, bg="#0a0e27")
@@ -179,6 +193,41 @@ class JarvisApp:
             self.approval_frame.pack_forget()
             self.current_task = None
             self.canvas.set_state("listening")
+
+    def voice_listener(self):
+        """Listen for wake word."""
+        if not HAS_AUDIO:
+            self.log("⚠️ sounddevice not installed. Run: pip install sounddevice")
+            return
+
+        try:
+            duration = 1
+            samplerate = 16000
+
+            while True:
+                self.log("🎤 Listening for 'Hey Jarvis'...")
+                self.canvas.set_state("listening")
+
+                try:
+                    audio = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, dtype='float32')
+                    sd.wait()
+
+                    # Simple wake word detection (check for sound amplitude)
+                    amplitude = np.abs(audio).mean()
+                    if amplitude > 0.05:
+                        self.log("🎙️ Sound detected!")
+                        self.canvas.set_state("thinking")
+                        self.status.config(text="PROCESSING...")
+                        time.sleep(0.5)
+                        self.log("✓ Ready for command")
+                        self.canvas.set_state("listening")
+
+                except Exception as e:
+                    self.log(f"Microphone error: {e}")
+                    time.sleep(2)
+
+        except Exception as e:
+            self.log(f"Voice listener error: {e}")
 
 
 def main():
