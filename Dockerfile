@@ -4,9 +4,12 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y git curl && rm -rf /var/lib/apt/lists/*
 
+COPY pyproject.toml ./
+RUN pip install --no-cache-dir anthropic fastapi uvicorn pydantic pyyaml python-dotenv
+
 COPY . .
 
-RUN pip install --no-cache-dir -e .
+ENV PYTHONPATH=/app:$PYTHONPATH
 
 EXPOSE 8000
 
