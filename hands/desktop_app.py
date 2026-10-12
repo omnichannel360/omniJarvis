@@ -1,10 +1,9 @@
-"""Jarvis desktop app (Tkinter - microphone support)."""
+"""Jarvis desktop app - with mic permission control."""
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
+from tkinter import scrolledtext
 import math
 import threading
 import time
-from datetime import datetime
 
 API_URL = "http://localhost:8787"
 
@@ -17,8 +16,6 @@ except ImportError:
 
 
 class JarvisCanvas(tk.Canvas):
-    """Animated canvas showing Jarvis state."""
-
     def __init__(self, parent, **kwargs):
         super().__init__(parent, bg="#0a0e27", highlightthickness=0, **kwargs)
         self.state = "idle"
@@ -31,7 +28,6 @@ class JarvisCanvas(tk.Canvas):
     def animate(self):
         self.delete("all")
         self.time += 1
-
         w = self.winfo_width()
         h = self.winfo_height()
         if w < 2 or h < 2:
@@ -40,12 +36,9 @@ class JarvisCanvas(tk.Canvas):
 
         cx = w / 2
         cy = h / 2
-
-        # Core circle
         color = "#4dd0e1" if self.state == "speaking" else "#2196f3"
         self.create_oval(cx - 20, cy - 20, cx + 20, cy + 20, fill=color, outline=color)
 
-        # Breathing ring
         if self.state in ("listening", "idle"):
             breathe = 10 + 5 * math.sin(self.time * 0.1)
             self.create_oval(
@@ -54,7 +47,6 @@ class JarvisCanvas(tk.Canvas):
                 outline="#4dd0e1", width=2
             )
 
-        # Spectrum bars
         if self.state in ("thinking", "speaking"):
             for i in range(8):
                 angle = (i / 8) * 2 * math.pi
@@ -65,41 +57,47 @@ class JarvisCanvas(tk.Canvas):
                     x - 4, y - h_bar / 2, x + 4, y + h_bar / 2,
                     fill="#4dd0e1", outline="#4dd0e1"
                 )
-
         self.after(50, self.animate)
 
 
 class JarvisApp:
-    """Main Jarvis desktop application."""
-
     def __init__(self, root):
         self.root = root
         self.root.title("Jarvis — Voice Assistant")
-        self.root.geometry("900x800")
+        self.root.geometry("900x850")
         self.root.configure(bg="#0a0e27")
         self.current_task = None
-        self.listening = False
+        self.mic_enabled = False
+        self.voice_thread = None
 
-        # Start voice listener
-        if HAS_AUDIO:
-            self.voice_thread = threading.Thread(target=self.voice_listener, daemon=True)
-            self.voice_thread.start()
-            self.log("🎤 Microphone listening...")
+        # Mic permission panel (top)
+        mic_panel = tk.Frame(root, bg="#0a0e27", highlightthickness=1, highlightbackground="#f44336")
+        mic_panel.pack(pady=10, padx=20, fill=tk.X)
+
+        self.mic_status = tk.Label(
+            mic_panel, text="🔴 Microphone: PERMISSION REQUIRED",
+            font=("Arial", 11, "bold"), bg="#0a0e27", fg="#f44336"
+        )
+        self.mic_status.pack(side=tk.LEFT, padx=10, pady=8)
+
+        self.btn_mic = tk.Button(
+            mic_panel, text="✓ Enable Microphone",
+            bg="#4caf50", fg="white", font=("Arial", 10, "bold"),
+            padx=15, pady=5, command=self.enable_microphone
+        )
+        self.btn_mic.pack(side=tk.LEFT, padx=10)
 
         # Title
-        title_frame = tk.Frame(root, bg="#0a0e27")
-        title_frame.pack(pady=20)
-
         title = tk.Label(
-            title_frame, text="Jarvis", font=("Arial", 32, "bold"),
+            root, text="Jarvis", font=("Arial", 32, "bold"),
             bg="#0a0e27", fg="#4dd0e1"
         )
-        title.pack()
+        title.pack(pady=15)
 
         # Status
         self.status = tk.Label(
-            root, text="LISTENING...", font=("Arial", 12),
-            bg="#0a0e27", fg="#90caf9"
+            root, text="WAITING FOR PERMISSION",
+            font=("Arial", 12), bg="#0a0e27", fg="#90caf9"
         )
         self.status.pack(pady=10)
 
@@ -146,40 +144,78 @@ class JarvisApp:
         )
         self.logs.pack(pady=10, padx=20, fill=tk.BOTH, expand=False)
 
-        self.log("Jarvis started")
+        self.log("Jarvis started. Click 'Enable Microphone' to start.")
+        self.log("Windows will ask for microphone permission.")
         self.poll_state()
 
+    def enable_microphone(self):
+        """Enable microphone with permission check."""
+        if not HAS_AUDIO:
+            self.log("⚠️ sounddevice not installed. Run: pip install sounddevice")
+            return
+
+        self.log("🎤 Requesting microphone access...")
+
+        try:
+            # Test microphone access
+            sd.rec(1, samplerate=16000, channels=1, dtype='float32')
+            sd.wait()
+            self.mic_enabled = True
+            self.mic_status.config(text="🟢 Microphone: ENABLED", fg="#4caf50")
+            self.btn_mic.config(text="✓ Microphone Enabled", state=tk.DISABLED)
+            self.status.config(text="LISTENING...")
+            self.canvas.set_state("listening")
+            self.log("✓ Microphone enabled! Say 'Hey Jarvis'")
+
+            # Start voice listener
+            if self.voice_thread is None or not self.voice_thread.is_alive():
+                self.voice_thread = threading.Thread(target=self.voice_listener, daemon=True)
+                self.voice_thread.start()
+        except Exception as e:
+            self.log(f"❌ Microphone access denied: {e}")
+            self.log("To enable: Settings → Privacy → Microphone → Allow apps to access")
+            self.mic_status.config(text="❌ Microphone: ACCESS DENIED", fg="#f44336")
+
+    def voice_listener(self):
+        """Listen for audio."""
+        if not HAS_AUDIO or not self.mic_enabled:
+            return
+
+        try:
+            while self.mic_enabled:
+                duration = 1
+                samplerate = 16000
+                audio = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, dtype='float32')
+                sd.wait()
+
+                amplitude = np.abs(audio).mean()
+                if amplitude > 0.05:
+                    self.log(f"🎙️ Sound detected! (level: {amplitude:.2f})")
+                    self.canvas.set_state("thinking")
+                    self.status.config(text="PROCESSING...")
+                    time.sleep(0.5)
+                    self.canvas.set_state("listening")
+                    self.status.config(text="LISTENING...")
+        except Exception as e:
+            if self.mic_enabled:
+                self.log(f"Mic error: {e}")
+                time.sleep(2)
+
     def log(self, msg):
-        """Add message to logs."""
-        now = datetime.now().strftime("%H:%M:%S")
         self.logs.config(state=tk.NORMAL)
-        self.logs.insert(tk.END, f"[{now}] {msg}\n")
+        self.logs.insert(tk.END, f"{msg}\n")
         self.logs.see(tk.END)
         self.logs.config(state=tk.DISABLED)
 
     def poll_state(self):
-        """Poll Jarvis state."""
         try:
             import urllib.request
             urllib.request.urlopen(f"{API_URL}/health", timeout=2)
-            self.canvas.set_state("listening")
-            self.status.config(text="LISTENING...")
-        except Exception as e:
-            self.log(f"Connection: {e}")
-
+        except:
+            pass
         self.root.after(2000, self.poll_state)
 
-    def show_approval(self, task_id, task, details):
-        """Show approval panel."""
-        self.current_task = {"task_id": task_id, "task": task}
-        self.approval_title.config(text=f"Approve: {task}")
-        self.approval_details.config(text=details)
-        self.approval_frame.pack(pady=10, fill=tk.X, padx=20)
-        self.canvas.set_state("approval_pending")
-        self.log(f"⏳ Waiting approval: {task}")
-
     def approve(self):
-        """Approve task."""
         if self.current_task:
             self.log(f"✓ Approved: {self.current_task['task']}")
             self.approval_frame.pack_forget()
@@ -187,47 +223,11 @@ class JarvisApp:
             self.canvas.set_state("listening")
 
     def deny(self):
-        """Deny task."""
         if self.current_task:
             self.log(f"✗ Denied: {self.current_task['task']}")
             self.approval_frame.pack_forget()
             self.current_task = None
             self.canvas.set_state("listening")
-
-    def voice_listener(self):
-        """Listen for wake word."""
-        if not HAS_AUDIO:
-            self.log("⚠️ sounddevice not installed. Run: pip install sounddevice")
-            return
-
-        try:
-            duration = 1
-            samplerate = 16000
-
-            while True:
-                self.log("🎤 Listening for 'Hey Jarvis'...")
-                self.canvas.set_state("listening")
-
-                try:
-                    audio = sd.rec(int(samplerate * duration), samplerate=samplerate, channels=1, dtype='float32')
-                    sd.wait()
-
-                    # Simple wake word detection (check for sound amplitude)
-                    amplitude = np.abs(audio).mean()
-                    if amplitude > 0.05:
-                        self.log("🎙️ Sound detected!")
-                        self.canvas.set_state("thinking")
-                        self.status.config(text="PROCESSING...")
-                        time.sleep(0.5)
-                        self.log("✓ Ready for command")
-                        self.canvas.set_state("listening")
-
-                except Exception as e:
-                    self.log(f"Microphone error: {e}")
-                    time.sleep(2)
-
-        except Exception as e:
-            self.log(f"Voice listener error: {e}")
 
 
 def main():
