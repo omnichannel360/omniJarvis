@@ -9,13 +9,8 @@ def setup_keys():
     if not api_key:
         print("Abort: API key required")
         sys.exit(1)
-    
-    telegram_token = input("Enter TELEGRAM_BOT_TOKEN: ").strip()
-    telegram_owner = input("Enter TELEGRAM_OWNER_ID: ").strip()
-    
+
     keyring.set_password("jarvis", "anthropic_api_key", api_key)
-    keyring.set_password("jarvis", "telegram_bot_token", telegram_token)
-    keyring.set_password("jarvis", "telegram_owner_id", telegram_owner)
     
     print("✓ Keys stored in credential store")
 

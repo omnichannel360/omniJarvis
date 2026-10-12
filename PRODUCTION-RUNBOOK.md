@@ -8,8 +8,8 @@
 - [ ] Check audit log for overnight activity
 
 ### 07:00 Manila
-- [ ] Morning brief should arrive on Telegram
-- [ ] Verify email, calendar, project status in brief
+- [ ] Morning brief saved to C:\Jarvis\logs\brief.txt
+- [ ] Verify email, calendar, project status in log
 
 ### Throughout Day
 - [ ] Monitor API quota (daily limit: $50)
@@ -30,11 +30,11 @@
 
 ## Monitoring & Alerts
 
-### Telegram Alerts
-- CPU >80%: immediate notification
-- Memory >85%: immediate notification
-- Daily cost >$50: daily summary at 18:00
-- Tier 2 approval pending >10min: reminder at 10:05
+### WebSocket UI Alerts
+- CPU >80%: alert in browser UI
+- Memory >85%: alert in browser UI
+- Daily cost >$50: log entry (check C:\Jarvis\logs\cost.log)
+- Tier 2 approval pending >10min: UI panel reminder
 
 ### Log Monitoring
 - File: `C:\Jarvis\logs\audit.jsonl`
@@ -77,16 +77,16 @@ services.msc -> JarvisHands -> Restart
 ```
 
 ### No Morning Brief
-- Check Telegram bot token in keyring
 - Verify morning_brief.md job scheduled
 - Check brain logs for job execution errors
+- Verify output file: C:\Jarvis\logs\brief.txt
 - Run: `python brain/jarvis_brain/app ask "test brief"`
 
 ### Tier 2 Approval Not Working
-- Check Telegram bot token
-- Verify owner ID in settings.yaml
-- Test: `python scripts/setup_keys.py` (re-store token)
-- Check brain logs for telegram connection
+- Verify WebSocket UI accessible at http://localhost:8788
+- Check browser console for errors
+- Verify hands/server.py running (Windows Service)
+- Check C:\Jarvis\logs\approvals.jsonl for approval events
 
 ### File Index Slow
 - Rebuild index: `python hands/index/builder.py rebuild <workspace>`

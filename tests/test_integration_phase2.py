@@ -1,4 +1,4 @@
-"""Phase 2 integration tests — voice pipeline, Telegram gateway."""
+"""Phase 2 integration tests — voice pipeline."""
 import pytest
 
 class TestVoicePipeline:
@@ -25,23 +25,12 @@ class TestVoicePipeline:
         assert hasattr(engine, "synthesize")
         assert hasattr(engine, "stream")
 
-
-class TestTelegramGateway:
-    """Test Telegram approval gateway."""
-
-    def test_telegram_gateway_exists(self):
-        """Telegram gateway should exist."""
-        from brain.telegram_bot import TelegramGateway
-        gateway = TelegramGateway("token", 12345)
-        assert hasattr(gateway, "request_approval")
-        assert hasattr(gateway, "send_message")
-
-    def test_approval_timeout(self):
-        """Approval should timeout after 10 minutes."""
-        from brain.telegram_bot import TelegramGateway
-        from datetime import timedelta
-        gateway = TelegramGateway("token", 12345)
-        assert gateway.approval_timeout == timedelta(minutes=10)
+    def test_approval_panel_websocket_exists(self):
+        """WebSocket approval panel should exist."""
+        from policy.approval_ui import ApprovalPanel
+        panel = ApprovalPanel()
+        assert hasattr(panel, "request_approval")
+        assert hasattr(panel, "handle_approval")
 
 
 def test_voice_round_trip_under_2_5_seconds():

@@ -35,9 +35,11 @@ api:
     port: 8787
     auth: token
 
-telegram:
-  owner_id: 0
-  approval_timeout_minutes: 10
+approvals:
+  method: websocket_ui
+  timeout_minutes: 10
+  ui_host: localhost
+  ui_port: 8788
 
 memory:
   database: C:\Jarvis\memory\jarvis.db
