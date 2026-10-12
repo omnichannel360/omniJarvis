@@ -216,7 +216,8 @@ class JarvisApp:
                 sd.wait()
 
                 amplitude = np.abs(audio).mean()
-                if amplitude > 0.05:
+                self.log(f"Audio level: {amplitude:.4f}")
+                if amplitude > 0.01:
                     self.log(f"🎙️ Sound detected! (level: {amplitude:.2f})")
                     self.canvas.set_state("thinking")
                     self.status.config(text="PROCESSING...")
