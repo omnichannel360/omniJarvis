@@ -53,18 +53,24 @@ async def serve_ui() -> HTMLResponse:
     return HTMLResponse(ui_file.read_text())
 
 
-@app.websocket("/ws/ui")
-async def ws_ui(websocket: WebSocket) -> None:
-    """WebSocket for UI (echo stub)."""
+@app.websocket("/ws")
+async def ws_handler(websocket: WebSocket) -> None:
+    """WebSocket for UI state + approvals."""
     await websocket.accept()
-    logger.info("UI WebSocket connected")
+    logger.info("WebSocket connected")
+    await websocket.send_json({"type": "connected", "message": "Connected to Jarvis"})
+
     try:
         while True:
             data = await websocket.receive_json()
-            # Echo state changes; real implementation routes to voice pipeline
-            logger.debug(f"UI message: {data}")
+            if data.get("type") == "approval_response":
+                task_id = data.get("task_id")
+                approved = data.get("approved")
+                logger.info(f"Approval {task_id}: {'APPROVED' if approved else 'DENIED'}")
+            else:
+                logger.debug(f"UI message: {data}")
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.info(f"WebSocket closed: {e}")
 
 
 @app.post("/tools/workspace/list")
